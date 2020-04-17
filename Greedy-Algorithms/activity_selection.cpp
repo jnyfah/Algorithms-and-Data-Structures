@@ -9,7 +9,7 @@ struct Activity {
 
 void activitySelection(Activity activities[], int n);
 
-int main(void) {
+int main() {
 
   //activities
   Activity activities[8] = {
