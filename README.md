@@ -83,3 +83,11 @@ Time Complexity:
     Best Case Sort: Merge Sort: O(n)
     Average Case Sort: Merge Sort: O(n^2)
     Worst Case Sort: Merge Sort: O(n^2)
+    
+Greedy Algorithm
+
+    An algorithm that, while executing, selects only the information that meets a certain criteria.
+    
+    Used to find the expedient, though non-optimal, solution for a given problem.
+    Generally used on sets of data where only a small proportion of the information evaluated meets the desired result.
+    Often a greedy algorithm can help reduce the Big O of an algorithm.
