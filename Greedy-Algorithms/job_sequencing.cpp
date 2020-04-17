@@ -1,11 +1,11 @@
 #include <iostream>
 #include<iomanip>
 
-typedef struct Job {
+struct Job {
   char id[5];
   int deadline;
   int profit;
-} Job;
+};
 
 const int MAX = 100;
 
