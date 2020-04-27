@@ -8,13 +8,13 @@ int main(){
   int arr[10], i, key;
 
   //input
-  std::cout<<"Enter elements of the array: "<<std::endl;
+  std::cout<<"Enter elements : "<<std::endl;
   for(i = 0; i < 10; i++)
   {
      std::cin>>arr[i];
   }
 
-  std::cout<<"Enter key: "<<std::endl;
+  std::cout<<"Enter key to be searched: "<<std::endl;
   std::cin>> key;
 
   //search
