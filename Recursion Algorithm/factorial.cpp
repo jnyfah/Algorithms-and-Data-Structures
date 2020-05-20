@@ -2,7 +2,7 @@
 
 //function declaration
 int fact(int n);
-int nonRecFact(int n);
+
 
 int main(){
   //variable declaration
