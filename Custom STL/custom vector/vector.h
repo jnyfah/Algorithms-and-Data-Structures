@@ -17,7 +17,7 @@ public:
 
     friend class iterator;
 
-
+ // constructors
     vector(): vsize(0), capacity_size(1)
     {
         try
@@ -47,6 +47,32 @@ public:
         else
         {
             data = nullptr;
+        }
+    }
+
+
+    vector (iterator<T> pos1, iterator<T> pos2)
+    {
+        int i = 0;
+        for(iterator<T> it = pos1; it != pos2; it++)
+        {
+
+            data [i] = *it;
+            i++;
+
+        }
+        vsize = i;
+        capacity_size = 2*i;
+
+    }
+
+    vector(int n, const T& value )
+    {
+        vsize = n;
+        capacity_size = n*2;
+        for(int i =0; i < n; i++)
+        {
+            data[i] = value;
         }
     }
 
@@ -127,7 +153,7 @@ public:
             expand();
         }
 
-        for(iterator<T> it = end(); it != vsize; it--)
+        for(iterator<T> it = end(); it != pos; it--)
         {
             i--;
             data [i+count] = data [i];
