@@ -1,0 +1,12 @@
+
+
+introduce the project, what exactly are you looking to build 
+
+explain design for concurrent Map
+
+what exactly is a mutex ? shared and exclusive what it prevents, why manually locking and unlocking mutexes is bad, introduce std::lock, lockguard and unique lock and shared lock scoped lock 
+
+why mutable mutex ?? - so it can be used in const methods
+
+i want to write my own mutex
+
