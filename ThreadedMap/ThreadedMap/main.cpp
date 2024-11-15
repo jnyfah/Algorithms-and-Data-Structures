@@ -1,82 +1,95 @@
-#include <iostream>
-#include <iomanip>
+#include "ConcurrentMap.hpp"
+#include "ThreadPool.hpp"
+#include <atomic>
 #include <chrono>
+#include <iomanip>
+#include <iostream>
+#include <mutex>
 #include <random>
 #include <sstream>
-#include <atomic>
-#include "ThreadPool.hpp"
-#include "ConcurrentMap.hpp"
 
-std::atomic<int> completedTasks(0);  // Track completed tasks
+std::atomic<int> completedTasks(0);
+std::mutex m_mutex;
 
 std::string getCurrentTime() {
-    auto now = std::chrono::system_clock::now();
-    auto now_c = std::chrono::system_clock::to_time_t(now);
-    std::stringstream ss;
-    ss << std::put_time(std::localtime(&now_c), "%H:%M:%S");
-    return ss.str();
+  auto now = std::chrono::system_clock::now();
+  auto now_c = std::chrono::system_clock::to_time_t(now);
+  std::stringstream ss;
+  ss << std::put_time(std::localtime(&now_c), "%H:%M:%S");
+  return ss.str();
 }
 
 void simulateWork(int milliseconds) {
-    std::this_thread::sleep_for(std::chrono::milliseconds(milliseconds));
+  std::this_thread::sleep_for(std::chrono::milliseconds(milliseconds));
 }
 
-void processOrder(int orderId, ConcurrentMap& inventory, const std::string& product) {
-    std::cout << "[" << getCurrentTime() << "] Thread " << std::this_thread::get_id() 
-              << " processing order " << orderId << " for " << product << "\n";
-    
-    int quantity = inventory.read(product);
-    if (quantity <= 0) {
-        std::cout << "Order " << orderId << ": " << product << " out of stock!\n";
-        completedTasks++;
-        return;
-    }
+void processOrder(int orderId, ConcurrentMap &inventory,
+                  const std::string &product) {
+  std::cout << "[" << getCurrentTime() << "] Thread "
+            << std::this_thread::get_id() << " processing order " << orderId
+            << " for " << product << "\n";
 
-    // Simulate processing time (1 second)
-    simulateWork(1000);
+  // Lock the inventory access to prevent concurrent modification issues
+  {
+    std::lock_guard<std::mutex> lock(
+        m_mutex); // Using Mutex for inventory simplicity
+    int currentQty = inventory.read(product);
+    inventory.write(product, currentQty - 1);
+  }
 
-    // Decrement inventory
-    inventory.write(product, quantity - 1);
-    std::cout << "Order " << orderId << " completed! Remaining " 
-              << product << " inventory: " << (quantity - 1) << "\n";
-    
-    completedTasks++;
+  std::cout << "Order " << orderId << " completed! Remaining " << product
+            << " inventory: " << inventory.read(product) << "\n";
+
+  completedTasks++;
 }
 
 int main() {
-    {  // Create a scope for the ThreadPool
-        ThreadPool pool(3);
-        std::cout << "Created thread pool with 3 workers\n\n";
+  const int TOTAL_TASKS = 7;
 
-        ConcurrentMap inventory;
-        inventory.write("Laptop", 5);
-        inventory.write("Phone", 3);
-        
-        std::cout << "Initial inventory:\n";
-        std::cout << "Laptops: " << inventory.read("Laptop") << "\n";
-        std::cout << "Phones: " << inventory.read("Phone") << "\n\n";
+  ThreadPool pool(3);
 
-        std::cout << "Starting to process orders...\n\n";
+  std::cout << "Created thread pool with" << TOTAL_TASKS << " workers\n\n";
 
-        // Submit 6 orders
-        pool.submit([&]() { processOrder(1, inventory, "Laptop"); });
-        pool.submit([&]() { processOrder(2, inventory, "Phone"); });
-        pool.submit([&]() { processOrder(3, inventory, "Laptop"); });
-        pool.submit([&]() { processOrder(4, inventory, "Phone"); });
-        pool.submit([&]() { processOrder(5, inventory, "Laptop"); });
-        pool.submit([&]() { processOrder(6, inventory, "Phone"); });
+  ConcurrentMap inventory;
+  inventory.write("Laptop", 5);
+  inventory.write("Phone", 3);
+  std::cout << "Initial inventory:\n";
+  std::cout << "Laptops: " << inventory.read("Laptop") << "\n";
+  std::cout << "Phones: " << inventory.read("Phone") << "\n\n";
+  std::cout << "Starting to process orders...\n\n";
 
-        // Wait for all tasks to complete
-        while (completedTasks < 6) {
-            simulateWork(100);  // Check every 100ms
-        }
+  // Submit tasks
+  pool.submit([&]() { processOrder(1, inventory, "Laptop"); });
+  pool.submit([&]() { processOrder(2, inventory, "Phone"); });
+  pool.submit([&]() { processOrder(3, inventory, "Laptop"); });
+  pool.submit([&]() { processOrder(4, inventory, "Laptop"); });
+  pool.submit([&]() { processOrder(5, inventory, "Laptop"); });
+  pool.submit([&]() { processOrder(7, inventory, "Phone"); });
+  pool.submit([&]() { processOrder(8, inventory, "Phone"); });
 
-        std::cout << "\nFinal inventory:\n";
-        std::cout << "completedTasks: " << completedTasks << "\n";
-        std::cout << "Laptops: " << inventory.read("Laptop") << "\n";
-        std::cout << "Phones: " << inventory.read("Phone") << "\n";
+  // Wait for all tasks to complete with timeout and progress indicator
+  const auto startTime = std::chrono::steady_clock::now();
+  const auto timeout = std::chrono::seconds(10);
+
+  while (completedTasks.load(std::memory_order_acquire) < TOTAL_TASKS) {
+    if (std::chrono::steady_clock::now() - startTime > timeout) {
+      std::cout << "Timeout waiting for tasks to complete! Completed: "
+                << completedTasks.load() << "/" << TOTAL_TASKS << "\n";
+      return 1;
     }
-    
-    std::cout << "\nProgram completed successfully!\n";
-    return 0;
+    simulateWork(100);
+    std::cout << "Waiting... Completed tasks: " << completedTasks.load() << "/"
+              << TOTAL_TASKS << "\r" << std::flush;
+  }
+  std::cout << "\nAll tasks completed!\n";
+  std::cout << "\nFinal inventory:\n";
+  std::cout << "completedTasks: " << completedTasks << "\n";
+  std::cout << "Laptops: " << inventory.read("Laptop") << "\n";
+  std::cout << "Phones: " << inventory.read("Phone") << "\n";
+
+  // Explicit shutdown, not necessary because shutdown is called in the threadpool destructor 
+  pool.shutdown();
+  std::cout << "\nProgram completed successfully!\n";
+
+  return 0;
 }
